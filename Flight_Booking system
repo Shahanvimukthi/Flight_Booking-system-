@@ -1,0 +1,347 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <limits>
+#include <algorithm>
+#include <cctype>
+
+using namespace std;
+
+#define MAX_USERS 100
+
+// Helper trim functions
+static inline void ltrim(string &s) {
+    s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch) { return !isspace(ch); }));
+}
+static inline void rtrim(string &s) {
+    s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !isspace(ch); }).base(), s.end());
+}
+static inline void trim(string &s) {
+    ltrim(s); rtrim(s);
+}
+
+// ================= Base User Class (Abstraction + Encapsulation) =================
+class User {
+protected:
+    string username, email;
+
+public:
+    User(string u, string e) : username(u), email(e) {}
+    virtual void displayRole() const = 0;  // Polymorphism
+
+    string getUsername() const { return username; }
+    void setUsername(string u) { username = u; }
+
+    string getEmail() const { return email; }
+    void setEmail(string e) { email = e; }
+};
+
+// ================= Passenger Class (Inheritance) =================
+class Passenger : public User {
+private:
+    string passportNo;
+
+public:
+    Passenger(string u, string e, string p) : User(u, e), passportNo(p) {}
+
+    void displayRole() const override { // Polymorphism
+        cout << "Passenger -> Name: " << username << ", Email: " << email
+             << ", Passport: " << passportNo << endl;
+    }
+};
+
+// ================= Admin Class (Inheritance) =================
+class Admin : public User {
+private:
+    int adminID;
+
+public:
+    Admin(string u, string e, int id) : User(u, e), adminID(id) {}
+
+    void displayRole() const override { // Polymorphism
+        cout << "Admin -> Name: " << username << ", Email: " << email
+             << ", ID: " << adminID << endl;
+    }
+};
+
+// ================= Flight Class (Encapsulation) =================
+class Flight {
+public:
+    string flightName, location, time, arrivalTime;
+
+    void display() {
+        cout << "Flight Name: " << flightName << endl;
+        cout << "Location: " << location << endl;
+        cout << "Departure Time: " << time << endl;
+        cout << "Arrival Time: " << arrivalTime << endl;
+        cout << "---------------------------\n";
+    }
+};
+
+// ================= System Class =================
+class System {
+private:
+    User* users[MAX_USERS];
+    int userCount;
+
+public:
+    System() : userCount(0) {}
+
+    // ---------- Main Menu ----------
+    void mainMenu() {
+        int choice;
+        while (true) {
+            cout << "\n===== Flight Reservation Main Menu =====\n";
+            cout << "1. Passenger Panel\n";
+            cout << "2. Admin Panel\n";
+            cout << "3. Exit\n";
+            cout << "Enter choice: ";
+            cin >> choice;
+
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Invalid input. Please enter a number.\n";
+                continue;
+            }
+
+            switch (choice) {
+                case 1: passengerMenu(); break;
+                case 2: adminLogin(); break;
+                case 3:
+                    cout << "Exiting Program...\n";
+                    return;
+                default: cout << "Invalid choice!\n";
+            }
+        }
+    }
+
+    // ---------- Passenger Panel ----------
+    void passengerMenu() {
+        int choice;
+        while (true) {
+            cout << "\n===== Passenger Panel =====\n";
+            cout << "1. Search Flights and Times\n";
+            cout << "2. Seat Booking\n";
+            cout << "3. Exit to Main Menu\n";
+            cout << "Enter choice: ";
+            cin >> choice;
+
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Invalid input. Please enter a number.\n";
+                continue;
+            }
+
+            switch (choice) {
+                case 1: searchFlights(); break;
+                case 2: seatBooking(); break;
+                case 3: return;
+                default: cout << "Invalid choice!\n";
+            }
+        }
+    }
+
+    void searchFlights() {
+        int choice;
+        cout << "\n--- Search Flights ---\n";
+        cout << "1. Search by Location\n";
+        cout << "2. Show All Flights\n";
+        cout << "Enter choice: ";
+        cin >> choice;
+
+        if (cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Invalid input. Returning to passenger menu.\n";
+            return;
+        }
+
+        ifstream fin("flights_data.txt");
+        if (!fin) {
+            cout << "No flights available (flights_data.txt missing).\n";
+            return;
+        }
+
+        Flight f;
+        string searchLocation;
+        if (choice == 1) {
+            cout << "Enter Location: ";
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            getline(cin, searchLocation);
+            trim(searchLocation);
+        } else {
+            // flush newline if needed
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+
+        cout << "\n--- Flight List ---\n";
+        while (getline(fin, f.flightName) &&
+               getline(fin, f.location) &&
+               getline(fin, f.time) &&
+               getline(fin, f.arrivalTime)) {
+            if (choice == 2 || (choice == 1 && f.location.find(searchLocation) != string::npos)) {
+                f.display();
+            }
+        }
+        fin.close();
+    }
+
+    void seatBooking() {
+        string fullName, email, flight, seatClass;
+
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Enter Full Name: ";
+        getline(cin, fullName);
+        trim(fullName);
+        cout << "Enter Email Address: ";
+        getline(cin, email);
+        trim(email);
+        cout << "Enter Flight Name: ";
+        getline(cin, flight);
+        trim(flight);
+        cout << "Enter Seat Class (1st class / 2nd class): ";
+        getline(cin, seatClass);
+        trim(seatClass);
+
+        cout << "\nSeat booking is complete!\n";
+        cout << "Booking Details:\n";
+        cout << "Name: " << fullName << "\nEmail: " << email
+             << "\nFlight: " << flight << "\nClass: " << seatClass << endl;
+
+        // Add passenger into system list (guard against overflow)
+        if (userCount < MAX_USERS) {
+            users[userCount++] = new Passenger(fullName, email, "N/A");
+        } else {
+            cout << "Cannot add passenger to internal list: maximum users reached.\n";
+        }
+    }
+
+    // ---------- Admin Panel ----------
+    void adminLogin() {
+        string name, password, email;
+        string idInput;
+        int userID = -1;
+
+        // safe flush and read lines
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Enter Admin Name: ";
+        getline(cin, name);
+        trim(name);
+
+        cout << "Enter Email: ";
+        getline(cin, email);
+        trim(email);
+
+        cout << "Enter User ID: ";
+        getline(cin, idInput);
+        trim(idInput);
+
+        // validate numeric ID
+        if (idInput.empty() || !all_of(idInput.begin(), idInput.end(), ::isdigit)) {
+            cout << "Invalid User ID. Please enter numeric ID only.\n";
+            return; // return to main menu
+        }
+
+        try {
+            userID = stoi(idInput);
+        } catch (...) {
+            cout << "Invalid User ID. Please try again.\n";
+            return;
+        }
+
+        cout << "Enter Password: ";
+        getline(cin, password);
+        trim(password);
+
+        // simple password check (for demo)
+        if (password == "admin123") {
+            cout << "Welcome to Admin Panel!\n";
+            if (userCount < MAX_USERS) {
+                users[userCount++] = new Admin(name, email, userID);
+            } else {
+                cout << "Warning: cannot store admin in memory: users array full.\n";
+            }
+            adminMenu();
+        } else {
+            cout << "Invalid login!\n";
+        }
+    }
+
+    void adminMenu() {
+        int choice;
+        while (true) {
+            cout << "\n===== Admin Menu =====\n";
+            cout << "1. Add Flight\n";
+            cout << "2. Display All Users\n";
+            cout << "3. Exit to Main Menu\n";
+            cout << "Enter choice: ";
+            cin >> choice;
+
+            if (cin.fail()) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Invalid input. Please enter a number.\n";
+                continue;
+            }
+
+            switch (choice) {
+                case 1: addFlight(); break;
+                case 2: displayAllUsers(); break;
+                case 3: return;
+                default: cout << "Invalid choice!\n";
+            }
+        }
+    }
+
+    void addFlight() {
+        Flight f;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Enter Flight Name: ";
+        getline(cin, f.flightName);
+        trim(f.flightName);
+        cout << "Enter Location: ";
+        getline(cin, f.location);
+        trim(f.location);
+        cout << "Enter Departure Time: ";
+        getline(cin, f.time);
+        trim(f.time);
+        cout << "Enter Arrival Time: ";
+        getline(cin, f.arrivalTime);
+        trim(f.arrivalTime);
+
+        ofstream fout("flights_data.txt", ios::app);
+        if (!fout) {
+            cout << "Error opening file.\n";
+            return;
+        }
+
+        fout << f.flightName << endl;
+        fout << f.location << endl;
+        fout << f.time << endl;
+        fout << f.arrivalTime << endl;
+        fout.close();
+
+        cout << "Flight added successfully!\n";
+    }
+
+    // ---------- Display All Users (Polymorphism in Action) ----------
+    void displayAllUsers() {
+        if (userCount == 0) {
+            cout << "No users available.\n";
+            return;
+        }
+        cout << "\n--- User List ---\n";
+        for (int i = 0; i < userCount; i++) {
+            users[i]->displayRole();  // Polymorphism
+        }
+    }
+};
+
+// ================= Main =================
+int main() {
+    System sys;
+    sys.mainMenu();
+    return 0;
+}
